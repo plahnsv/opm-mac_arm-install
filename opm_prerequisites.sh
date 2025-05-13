@@ -1,5 +1,5 @@
 #!/bin/bash
-# === prerequisites.sh ===
+# === opm_prerequisites.sh ===
 # Install core prerequisites for building OPM with Python bindings and optional documentation tools on macOS ARM
 
 set -e  # Exit immediately on error
