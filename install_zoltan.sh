@@ -1,57 +1,55 @@
 #!/bin/bash
 
-# Stop immediately if any command fails
-set -e
+# === install_zoltan.sh ===
+# Clone, build, and install Trilinos with Zoltan
 
-# Edit these variables as needed
-install_prefix="/Users/plahnsv/opm/install/zoltan"
-parallel_build_tasks=4
-trilinos_repo="https://github.com/trilinos/Trilinos.git"
-trilinos_branch="trilinos-release-16-0-0"
+set -e  # Exit on error
 
-# Step 1: Clone Trilinos if it doesn't exist
+# === USER CONFIGURATION ===
+OPM_ROOT="$HOME/opm"
+SRC_DIR="$OPM_ROOT/src"
+BUILD_DIR="$OPM_ROOT/build/zoltan"
+INSTALL_PREFIX="$OPM_ROOT/install/zoltan"
+LOG_FILE="$OPM_ROOT/logs/zoltan_build_$(date +%Y-%m-%d_%H-%M-%S).log"
+
+TRILINOS_REPO="https://github.com/trilinos/Trilinos.git"
+TRILINOS_BRANCH="trilinos-release-16-0-0"
+PARALLEL_JOBS=4
+
+echo "==== Zoltan Install Script ====" | tee "$LOG_FILE"
+echo "Cloning Trilinos source to $SRC_DIR" | tee -a "$LOG_FILE"
+
+# === Clone Trilinos if needed ===
+cd "$SRC_DIR"
 if [ ! -d "Trilinos" ]; then
-  echo "Cloning Trilinos repository..."
-  git clone $trilinos_repo
+  git clone "$TRILINOS_REPO" Trilinos | tee -a "$LOG_FILE"
 else
-  echo "Trilinos directory already exists. Skipping clone."
+  echo "Trilinos already exists, skipping clone." | tee -a "$LOG_FILE"
 fi
 
-# Step 2: Checkout the correct branch
 cd Trilinos
+git fetch origin | tee -a "$LOG_FILE"
+git checkout "$TRILINOS_BRANCH" | tee -a "$LOG_FILE"
 
-# Check if we're already on the right branch
-current_branch=$(git rev-parse --abbrev-ref HEAD)
+# === Configure build ===
+mkdir -p "$BUILD_DIR"
+cd "$BUILD_DIR"
 
-if [ "$current_branch" != "$trilinos_branch" ]; then
-  echo "Checking out branch $trilinos_branch..."
-  git fetch origin
-  git checkout $trilinos_branch
-else
-  echo "Already on branch $trilinos_branch."
-fi
-
-# Step 3: Create and enter build directory
-mkdir -p build
-cd build
-
-# Step 4: Configure with CMake
-echo "Running CMake..."
+echo "Running CMake..." | tee -a "$LOG_FILE"
 cmake \
-  -D CMAKE_INSTALL_PREFIX=$install_prefix \
-  -D TPL_ENABLE_MPI:BOOL=ON \
-  -D MPI_BASE_DIR:PATH=/usr/local \
-  -D Trilinos_ENABLE_ALL_PACKAGES:BOOL=OFF \
-  -D Trilinos_ENABLE_Zoltan:BOOL=ON \
-  ../
+  -DCMAKE_INSTALL_PREFIX="$INSTALL_PREFIX" \
+  -DTPL_ENABLE_MPI=ON \
+  -DMPI_BASE_DIR=/usr/local \
+  -DTrilinos_ENABLE_ALL_PACKAGES=OFF \
+  -DTrilinos_ENABLE_Zoltan=ON \
+  "$SRC_DIR/Trilinos" | tee -a "$LOG_FILE"
 
-# Step 5: Build
-echo "Building Trilinos (this may take a while)..."
-make -j $parallel_build_tasks
+# === Build and install ===
+echo "Building Trilinos..." | tee -a "$LOG_FILE"
+make -j "$PARALLEL_JOBS" | tee -a "$LOG_FILE"
 
-# Step 6: Install
-echo "Installing to $install_prefix..."
-make install
+echo "Installing to $INSTALL_PREFIX..." | tee -a "$LOG_FILE"
+make install | tee -a "$LOG_FILE"
 
-echo "✅ Trilinos with Zoltan installed successfully!"
+echo "✅ Trilinos with Zoltan installed successfully!" | tee -a "$LOG_FILE"
 
